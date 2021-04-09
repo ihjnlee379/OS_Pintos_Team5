@@ -1,4 +1,5 @@
-d의 유의미한 process는 전부 끝나고 추가 작업이 없는 idle한 상태로 바뀌어서 sleep을 하고 다음 time block에 wake을 해야하는 것인지 궁급합니다.
+1번.
+해당 주석 시점에서 thread의 유의미한 process는 전부 끝나고 추가 작업이 없는 idle한 상태로 바뀌어서 sleep을 하고 다음 time block에 wake을 해야하는 것인지 궁급합니다.
 void
 timer_sleep (int64_t ticks) 
 {
