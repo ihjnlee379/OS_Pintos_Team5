@@ -127,7 +127,7 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 void thread_yield_sleep (int64_t wake_tick_value);
-bool wake_time_compare(struct thread *a, struct thread *b, void *aux);
+bool wake_time_compare(const struct list_elem *a, const struct list_elem *b, void *aux);
 void wake_blocked_thread(int64_t tick);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */

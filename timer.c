@@ -95,8 +95,9 @@ timer_sleep (int64_t ticks)
 
   //%%%%%%%%%%%%%%%%%%%%%Is this the point where meaningful processes stop and need to wait?
   int64_t end = start + ticks;
-  if (end < timer_ticks()) //time block not finished yet
-    thread_yield_sleep (end);
+  thread_yield_sleep(end);
+  //if (end < timer_ticks()) //time block not finished yet
+   // thread_yield_sleep (end);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be

@@ -133,8 +133,10 @@ thread_tick (void)
   if (t == idle_thread)
     idle_ticks++;
 #ifdef USERPROG
-  else if (t->pagedir != NULL)
+  else if (t->pagedir != NULL) {
     user_ticks++;
+    //wake_blocked_thread(timer_ticks());
+  }
 #endif
   else
     kernel_ticks++;
@@ -333,8 +335,11 @@ thread_yield (void)
 
 /* faster wake_tick is true for the sorting */
 bool
-wake_time_compare(struct thread *a, struct thread *b, void *aux) { //%%%%%%%%%%%%%%%% What is this AUX thing?
-  return a->wake_tick < b->wake_tick;
+wake_time_compare(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) { //%%%%%%%%%%%%%%%% What is this AUX thing?
+  
+  const struct thread *a_th = list_entry(a, struct thread, elem);
+  const struct thread *b_th = list_entry(b, struct thread, elem);
+  return a_th->wake_tick < b_th->wake_tick;
 }
 
 /* Yields the CPU.  The current thread is put to sleep. */
@@ -344,35 +349,47 @@ thread_yield_sleep (int64_t wake_tick_value)
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  ASSERT (!intr_context ());
+  ASSERT (!intr_context ());  // It's in thread_block()
 
   old_level = intr_disable ();
-
+  ASSERT (intr_get_level () == INTR_OFF); // It's in thread_block()
 
   if (cur != idle_thread) {   //%%%%%%%%%%%%%%%%%%%%%%% What is the purpose of this if statement?
+    cur->wake_tick = wake_tick_value;
+    cur->status = THREAD_BLOCKED; // thread_block()?
     list_insert_ordered(&blocked_list, &cur->elem, wake_time_compare, NULL);   // fastest wake at first  
     //list_push_back (&blocked_list, &cur->elem);
-    cur->wake_tick = wake_tick_value;
+    schedule();
   }
-  cur->status = THREAD_BLOCKED;
-  //%%%%%%%%%%%%%%%%%%% Or Do I have to call thread_block()??
-
-  schedule ();
+ 
   intr_set_level (old_level);
 }
 
 /* Wake the thread when it is the right time. It should be called every tick to check */
 void
 wake_blocked_thread(int64_t tick) {
+  
   if (list_empty(&blocked_list)) {
     return;
   }
-  struct thread *cur = list_entry(list_pop_front(&blocked_list), struct thread, elem); //%%%%%%%%%%%% What is the difference between list_front and list_begin?
-  if (cur->wake_tick <= tick) {
+  struct list_elem *wake_turn;
+  struct thread *cur;
+  wake_turn = list_begin(&blocked_list);
+  cur = list_entry(wake_turn, struct thread, elem);
+  
+  while (cur->wake_tick <= tick) {
+    wake_turn = list_remove(&cur->elem);
     thread_unblock(cur);
-  }
-  else {
-    list_push_front(&blocked_list, &cur->elem);
+    if (list_empty(&blocked_list))
+       return;
+//    wake_turn = list_front(&blocked_list);
+    cur = list_entry(wake_turn, struct thread, elem);
+      //[CHANGE]
+     // else {
+      //  wake_turn = list_next(wake_turn);
+     // }
+    
+   //[CHANGE] list_push_front(&blocked_list, &cur->elem);
   }
 }
 
