@@ -93,11 +93,8 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  //%%%%%%%%%%%%%%%%%%%%%Is this the point where meaningful processes stop and need to wait?
   int64_t end = start + ticks;
-  thread_yield_sleep(end);
-  //if (end < timer_ticks()) //time block not finished yet
-   // thread_yield_sleep (end);
+  thread_yield_sleep(end); // Thread will sleep til end
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -174,8 +171,8 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-  ticks++; //%%%%%%%%%%%%%%%%%%%%%%%%%% Does this run everytime?
-  wake_blocked_thread(timer_ticks());
+  ticks++; 
+  wake_blocked_thread(timer_ticks()); // Awake the blocked thread
   thread_tick ();
 }
 

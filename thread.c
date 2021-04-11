@@ -96,7 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  list_init (&blocked_list);
+  list_init (&blocked_list); // initiate blocked list
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -135,7 +135,6 @@ thread_tick (void)
 #ifdef USERPROG
   else if (t->pagedir != NULL) {
     user_ticks++;
-    //wake_blocked_thread(timer_ticks());
   }
 #endif
   else
@@ -335,10 +334,10 @@ thread_yield (void)
 
 /* faster wake_tick is true for the sorting */
 bool
-wake_time_compare(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) { //%%%%%%%%%%%%%%%% What is this AUX thing?
-  
+wake_time_compare(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
   const struct thread *a_th = list_entry(a, struct thread, elem);
   const struct thread *b_th = list_entry(b, struct thread, elem);
+  // Compare ticks to sort the blocked_list
   return a_th->wake_tick < b_th->wake_tick;
 }
 
@@ -349,16 +348,17 @@ thread_yield_sleep (int64_t wake_tick_value)
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  ASSERT (!intr_context ());  // It's in thread_block()
+  ASSERT (!intr_context ()); 
 
   old_level = intr_disable ();
-  ASSERT (intr_get_level () == INTR_OFF); // It's in thread_block()
 
-  if (cur != idle_thread) {   //%%%%%%%%%%%%%%%%%%%%%%% What is the purpose of this if statement?
-    cur->wake_tick = wake_tick_value;
-    cur->status = THREAD_BLOCKED; // thread_block()?
-    list_insert_ordered(&blocked_list, &cur->elem, wake_time_compare, NULL);   // fastest wake at first  
-    //list_push_back (&blocked_list, &cur->elem);
+  ASSERT (intr_get_level () == INTR_OFF); // Interrupts must be turned on
+
+  if (cur != idle_thread) {
+    cur->wake_tick = wake_tick_value; // Set current thread's wake_tick to wake_tick_value
+    cur->status = THREAD_BLOCKED; // Block current thread
+    list_insert_ordered(&blocked_list, &cur->elem, wake_time_compare, NULL);
+    // Insert current thread to blocked_list, shortest wake_tick fisrt
     schedule();
   }
  
@@ -372,24 +372,18 @@ wake_blocked_thread(int64_t tick) {
   if (list_empty(&blocked_list)) {
     return;
   }
+
   struct list_elem *wake_turn;
   struct thread *cur;
   wake_turn = list_begin(&blocked_list);
   cur = list_entry(wake_turn, struct thread, elem);
   
-  while (cur->wake_tick <= tick) {
-    wake_turn = list_remove(&cur->elem);
-    thread_unblock(cur);
+  while (cur->wake_tick <= tick) { // After current thread's wake_tick
+    wake_turn = list_remove(&cur->elem); // Remove current thread from blocked_list
+    thread_unblock(cur); // Unblock current thread
     if (list_empty(&blocked_list))
        return;
-//    wake_turn = list_front(&blocked_list);
-    cur = list_entry(wake_turn, struct thread, elem);
-      //[CHANGE]
-     // else {
-      //  wake_turn = list_next(wake_turn);
-     // }
-    
-   //[CHANGE] list_push_front(&blocked_list, &cur->elem);
+    cur = list_entry(wake_turn, struct thread, elem); // Move to the next thread
   }
 }
 
