@@ -126,6 +126,8 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+
+/* HW1 - Alarm clock */
 void thread_yield_sleep (int64_t wake_tick_value);
 bool wake_time_compare(const struct list_elem *a, const struct list_elem *b, void *aux);
 void wake_blocked_thread(int64_t tick);
@@ -133,6 +135,10 @@ void wake_blocked_thread(int64_t tick);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+
+/* Hw2 - Priority Scheduling */
+void yield_to_max(void);
+bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 int thread_get_priority (void);
 void thread_set_priority (int);

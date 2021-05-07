@@ -215,8 +215,18 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (t->priority > thread_get_priority())
+    thread_yield(); // 새로 생성된 스레드 t가 current thread보다 priority가 높으면 cpu 양보
+
   return tid;
 }
+
+/* 스레드들의 priority를 비교하는 함수. priority of a > b이면 true 반환 */
+bool compare_thread_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+  return list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority;
+}
+
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -251,7 +261,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  //list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, 0); // priority 순으로 ready list에 삽입
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -324,7 +335,8 @@ thread_yield (void)
 
 
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    //list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, compare_thread_priority, 0);  // priority 순으로 ready list에 삽입
   cur->status = THREAD_READY;
 
 
@@ -404,11 +416,27 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* ready list에서 priority가 가장 높은 thread와 current thread를 비교. ready list의 thread가 priority 높으면 cpu 양보 */
+void
+yield_to_max (void) {
+
+  struct thread *first;
+  first = list_entry (list_front (&ready_list), struct thread, elem);
+
+  if (list_empty(&ready_list))
+    return;
+
+  if (thread_current ()->priority < first->priority) {
+    thread_yield ();
+  }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  yield_to_max(); // priority 변경이 일어났는지 체크하고, 변경이 일어났다면 yield
 }
 
 /* Returns the current thread's priority. */
