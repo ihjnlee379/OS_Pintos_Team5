@@ -32,7 +32,6 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -50,6 +49,19 @@ sema_init (struct semaphore *sema, unsigned value)
   sema->value = value;
   list_init (&sema->waiters);
 }
+
+
+bool compare_sema_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+  struct semaphore_elem *a_sema = list_entry(a, struct semaphore_elem, elem);
+  struct semaphore_elem *b_sema = list_entry(b, struct semaphore_elem, elem);
+
+  struct list *a_list = &(a_sema->semaphore.waiters);
+  struct list *b_list = &(b_sema->semaphore.waiters);
+
+  return list_entry(list_begin(a_list), struct thread, elem)->priority > list_entry(list_begin(b_list), struct thread, elem)->priority;
+
+} // semaphore의 thread priority 비교 (가장 높은 priority의 thread를 가진 semaphore를 깨우기 위함). a > b이면 true
 
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
    to become positive and then atomically decrements it.
@@ -333,15 +345,6 @@ lock_held_by_current_thread (const struct lock *lock)
 }
 
 
-
-bool compare_sema_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
-{
-  struct list *a_list = &(list_entry(a, struct semaphore_elem, elem)->semaphore.waiters);
-  struct list *b_list = &(list_entry(b, struct semaphore_elem, elem)->semaphore.waiters);
-
-  return list_entry(list_begin(a_list), struct thread, elem)->priority > list_entry(list_begin(b_list), struct thread, elem)->priority;
-
-} // semaphore의 thread priority 비교 (가장 높은 priority의 thread를 가진 semaphore를 깨우기 위함). a > b이면 true
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
