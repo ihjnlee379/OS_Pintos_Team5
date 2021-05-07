@@ -4,11 +4,22 @@
 #include <list.h>
 #include <stdbool.h>
 
+#define DEFAULT_DEPTH 8
+#define DEFAULT_BOOL_DEPTH 1
+
+
 /* A counting semaphore. */
 struct semaphore 
   {
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
+  };
+
+/* One semaphore in a list. */
+struct semaphore_elem 
+  {
+    struct list_elem elem;              /* List element. */
+    struct semaphore semaphore;         /* This semaphore. */
   };
 
 void sema_init (struct semaphore *, unsigned value);
@@ -43,7 +54,8 @@ void cond_broadcast (struct condition *, struct lock *);
 
 /* HW2 - priority scheduling */
 bool compare_sema_priority (const struct list_elem *, const struct list_elem *, void *);
-
+void set_priority_for_lock_holder (struct lock *lock, int depth, int bool_depth);
+void lock_remove(struct lock *l);
 
 /* Optimization barrier.
 

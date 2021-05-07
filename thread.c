@@ -227,6 +227,11 @@ bool compare_thread_priority (const struct list_elem *a, const struct list_elem 
   return list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority;
 }
 
+bool compare_donation_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+return list_entry (a, struct thread, donation_elem)->priority > list_entry (b, struct thread, donation_elem)->priority;
+} 
+
+
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -262,6 +267,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   //list_push_back (&ready_list, &t->elem);
+  
   list_insert_ordered (&ready_list, &t->elem, compare_thread_priority, 0); // priority 순으로 ready list에 삽입
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -420,24 +426,51 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 yield_to_max (void) {
 
-  struct thread *first;
-  first = list_entry (list_front (&ready_list), struct thread, elem);
+  //struct thread *first;
+  //first = list_entry (list_front (&ready_list), struct thread, elem);
 
-  if (list_empty(&ready_list))
-    return;
+  //if (list_empty(&ready_list))
+  //  return;
 
-  if (thread_current ()->priority < first->priority) {
+  if (!list_empty(&ready_list) && thread_current ()->priority < list_entry (list_front (&ready_list), struct thread, elem)->priority) {
     thread_yield ();
   }
+}
+
+/* ready list sorting */
+void ready_list_sort(void) {
+  if(list_empty(&ready_list)) {
+    return;
+  }
+  list_sort(&ready_list, compare_thread_priority, NULL);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  thread_current ()->initial_priority = new_priority;
+  change_priority();
   yield_to_max(); // priority 변경이 일어났는지 체크하고, 변경이 일어났다면 yield
 }
+
+void change_priority(void) {
+  struct thread *t = thread_current();
+  t->priority = t->initial_priority;
+
+  if (!list_empty(&t->donation_list)) {
+    list_sort(&t->donation_list, compare_donation_priority, NULL); // sorting 필요?? 필요하다면 donation element들을 비교하는 함수를 추가 구현해야 하는지 아니면 compare thread priority 함수로 sorting 할 수 있는지 확인필요
+    struct thread *first = list_entry(list_front(&t->donation_list), struct thread, donation_elem);
+    if (first->priority > t->priority) { // donation 리스트에서 가장 priority가 높은 thread와 현재 thread 비교. 높은 값을 현재 thread의 priority로 설정
+      t->priority = first->priority;
+      ready_list_sort();
+    }
+    if(t->waiting_for_this_lock != NULL) {
+      set_priority_for_lock_holder(t->waiting_for_this_lock, DEFAULT_DEPTH - 1, DEFAULT_BOOL_DEPTH);
+    }
+  }
+}
+
 
 /* Returns the current thread's priority. */
 int
@@ -476,6 +509,8 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
+
+
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
@@ -563,6 +598,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  t->initial_priority = priority;
+  list_init(&t->donation_list); 
+  t->waiting_for_this_lock =NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

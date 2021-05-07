@@ -88,6 +88,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int initial_priority;                 /* Initial priority */ // 초기 priority, 이건 안바뀜
+    //지금 여기에 어떤lock으로부터 얼마의 priority를 받는지에 대한 정보 필요
+    //이 정보는 lock으로부터 priority donation을 받을 시 갱신
+    struct list donation_list; // multiple 여기에 donation_elem
+    struct list_elem donation_elem; // elem로 안쓰고 따로 필요한지는 잘 모르겠으나 allelem로 따로 있으니 일단은 생성
+    struct lock *waiting_for_this_lock;          // nested을 위해서 추후 lock 갱신이 필요할 때를 대비해서
+
     int64_t wake_tick;                  /* Wake the thread at this tick */
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -139,6 +146,8 @@ void thread_foreach (thread_action_func *, void *);
 /* Hw2 - Priority Scheduling */
 void yield_to_max(void);
 bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool compare_donation_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+void change_priority(void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
@@ -147,5 +156,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void ready_list_sort(void);
 
 #endif /* threads/thread.h */
