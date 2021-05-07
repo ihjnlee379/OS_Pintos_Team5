@@ -115,10 +115,11 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  if (!list_empty (&sema->waiters)) {
     list_sort(&sema->waiters, &compare_thread_priority, NULL); // waiters list를 priority 순서대로 정렬
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
   sema->value++;
   intr_set_level (old_level);
 }
@@ -258,11 +259,8 @@ struct semaphore_elem
 
 bool compare_sema_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
-  struct semaphore_elem *a_sema = list_entry(a, struct semaphore_elem, elem);
-  struct semaphore_elem *b_sema = list_entry(b, struct semaphore_elem, elem);
-
-  struct list *a_list = &(a_sema->semaphore.waiters);
-  struct list *b_list = &(b_sema->semaphore.waiters);
+  struct list *a_list = &(list_entry(a, struct semaphore_elem, elem)->semaphore.waiters);
+  struct list *b_list = &(list_entry(b, struct semaphore_elem, elem)->semaphore.waiters);
 
   return list_entry(list_begin(a_list), struct thread, elem)->priority > list_entry(list_begin(b_list), struct thread, elem)->priority;
 
