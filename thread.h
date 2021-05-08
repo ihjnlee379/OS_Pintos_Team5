@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -95,6 +96,9 @@ struct thread
     struct list_elem donation_elem; // elem로 안쓰고 따로 필요한지는 잘 모르겠으나 allelem로 따로 있으니 일단은 생성
     struct lock *waiting_for_this_lock;          // nested을 위해서 추후 lock 갱신이 필요할 때를 대비해서
 
+    int recent_cpu;                 /* fixed point */
+    int nice;                            /* int */ 
+
     int64_t wake_tick;                  /* Wake the thread at this tick */
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -114,6 +118,7 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
+extern bool thread_aging;
 
 void thread_init (void);
 void thread_start (void);
@@ -148,6 +153,23 @@ void yield_to_max(void);
 bool compare_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 bool compare_donation_priority (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 void change_priority(void);
+
+void set_priority(void);
+int calc_priority(int recent_cpu, int nice);
+void update_load_avg(void);
+void update_recent_cpu(void);
+
+int convert_to_fixed_point(int n);
+int convert_to_int_to_zero(int x);
+int convert_to_int_to_nearest(int x);
+int add_fixed_and_fixed(int x, int y);
+int add_fixed_and_int(int x, int y);
+int substract_fixed_and_fixed(int x, int y);
+int substract_fixed_and_int(int x, int y);
+int multiply_fixed_and_fixed(int x, int y);
+int multiply_fixed_and_int(int x, int y);
+int divide_fixed_and_fixed(int x, int y);
+int divide_fixed_and_int(int x, int y);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
