@@ -223,10 +223,7 @@ lock_acquire (struct lock *lock)
       // thread_set_priority 때문에 그냥 다 넣어야할듯
       list_insert_ordered (&lock->holder->donation_list, &cur->donation_elem, compare_donation_priority, 0);  // priority
 
-      if (!thread_mlfqs) {
-        set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH);
-      }
-
+      set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH);
       //donate(lock->holder); //
     // 단순히 이렇게 donation하면 이것이 추후에도 괜찮을지 판단 필요
     // (이것이 영구적인 효과일지 일시적인 효과일지 판단 필요) 
@@ -312,10 +309,7 @@ lock_release (struct lock *lock)
 
   lock_remove(lock); // 애초에 순차적으로 지우니깐 이 결과도 sorted
   // lock release하면 현재 priority하고 만약 이게 또 다른 lock을 기다리면 그쪽에 priority 다시 갱신 필요
-  if (!thread_mlfqs) {
-    set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH); // 이걸로 가능할듯 그럴려면 lock holder 아직은 초기화하면 안됨
-  }
-}
+  set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH); // 이걸로 가능할듯 그럴려면 lock holder 아직은 초기화하면 안됨
 
 
   lock->holder = NULL;

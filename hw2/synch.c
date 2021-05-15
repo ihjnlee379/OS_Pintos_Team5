@@ -128,13 +128,15 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    list_sort(&sema->waiters, &compare_thread_priority, NULL); // waiters list를 priority 순서대로 정렬
+    //if(!thread_mlfqs) {
+      list_sort(&sema->waiters, &compare_thread_priority, NULL); // waiters list를 priority 순서대로 정렬
+    //}
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
   }
   sema->value++;
-  yield_to_max(); // 더 높은 priority 가진 thread가 있다면 yield(preemption)
   intr_set_level (old_level);
+  yield_to_max(); // 더 높은 priority 가진 thread가 있다면 yield(preemption)
 }
 
 static void sema_test_helper (void *sema_);
@@ -315,9 +317,6 @@ lock_release (struct lock *lock)
   if (!thread_mlfqs) {
     set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH); // 이걸로 가능할듯 그럴려면 lock holder 아직은 초기화하면 안됨
   }
-}
-
-
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }

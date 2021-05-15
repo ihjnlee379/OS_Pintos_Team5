@@ -315,7 +315,7 @@ lock_release (struct lock *lock)
   if (!thread_mlfqs) {
     set_priority_for_lock_holder(lock, DEFAULT_DEPTH, DEFAULT_BOOL_DEPTH); // 이걸로 가능할듯 그럴려면 lock holder 아직은 초기화하면 안됨
   }
-}
+
 
 
   lock->holder = NULL;
