@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -33,6 +34,8 @@ process_execute (const char *file_name)
   char *fn_copy;
   char *save_ptr; 
   tid_t tid;
+  int temp;
+  char *first_word;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -40,15 +43,30 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  strtok_r(file_name, " ", &save_ptr);
+  
+  first_word = (char *)malloc(sizeof(char) * 256);
+  for(temp = 0; temp < strlen(file_name); temp++) {
+    if(file_name[temp] != ' ' && file_name[temp] != '\0') {
+      first_word[temp] = file_name[temp];
+    }
+    else {
+      break;
+    }
+  }
+  first_word[temp] = '\0';
+  //printf("\nfirst word = %s\n", first_word);
+ 
+  if (filesys_open(first_word) == NULL)
+    return -1;
 
   /*****  argv[0]=strtok_r(fn_copy," ",&save_ptr);*/
   /* Create a new thread to execute FILE_NAME. */
   
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (first_word, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  return tid;
+
+  return process_wait(tid);
 }
 
 void parsing_filename(char *filename, void **esp) {
@@ -80,14 +98,14 @@ void parsing_filename(char *filename, void **esp) {
     }
   }
 
-  printf("argc = %d\n", argc);
+  //printf("argc = %d\n", argc);
   
   argv = (char **)malloc(sizeof(char *) * argc);
   argv[0] = strtok_r(temp_filename, " ", &saveptr);
-  printf("argv[0] = %s\n", argv[0]);
+  //printf("argv[0] = %s\n", argv[0]);
   for(temp = 1; temp < argc; temp++) {
     argv[temp] = strtok_r(NULL, " ", &saveptr);
-    printf("argv[%d] = %s\n\n", temp, argv[temp]);
+    //printf("argv[%d] = %s\n\n", temp, argv[temp]);
   }
   
   int total_len = 0; //total_len != (strlen(filename) + 1)
@@ -100,8 +118,8 @@ void parsing_filename(char *filename, void **esp) {
     argv[argc-1-temp] = *esp;
   }
 
-  printf("total_len = %d\n", total_len);
-  printf("strlen(filename) = %d\n", strlen(filename));
+  //printf("total_len = %d\n", total_len);
+  //printf("strlen(filename) = %d\n\n", strlen(filename));
 
   // push word align & NULL
   if (total_len % 4 != 0)
@@ -157,7 +175,7 @@ start_process (void *file_name_)
     }
   }
   first_word[temp] = '\0';
-  printf("\nfirst word = %s\n", first_word);
+  //printf("\nfirst word = %s\n", first_word);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -166,7 +184,7 @@ start_process (void *file_name_)
   //success = load (file_name, &if_.eip, &if_.esp);
   success = load (first_word, &if_.eip, &if_.esp);
   if(success) {
-    printf("load success\n\n");
+    //printf("load success\n\n");
     parsing_filename(file_name, &if_.esp);
   }
   /* If load failed, quit. */
@@ -176,7 +194,7 @@ start_process (void *file_name_)
   //free(first_word);
 
   if (!success) {
-    printf("load failed\n\n");
+    //printf("load failed\n\n");
     thread_exit ();
   }
 
@@ -202,8 +220,21 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  int i;
-  for (i = 0; i<100000; i++);
+  int exit;
+  struct thread* t = NULL;
+  struct list_elem* e = list_begin(&(thread_current()->child));
+
+  while (e != list_end(&(thread_current()->child))) {
+    t = list_entry(e, struct thread, child_e);
+    if (child_tid == t->tid) {
+      sema_down(&(t->sema_child));
+      exit = t->exit;
+      list_remove(&(t->child_e));
+      sema_up(&(t->sema_mem));
+      return exit;
+    }
+    e = list_next(e);
+  }
   return -1;
 }
 
@@ -230,6 +261,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  sema_up(&(cur->sema_child));
+  sema_down(&(cur->sema_mem));
 }
 
 /* Sets up the CPU for running user code in the current
