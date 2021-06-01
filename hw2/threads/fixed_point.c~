@@ -2,7 +2,7 @@
 
 //#define FIXED_POINT_MASK 0x4000
 #define FIXED_POINT_MASK (1<<14)
- 
+
 int convert_to_fixed_point(int n) {
   return n * FIXED_POINT_MASK;
 }

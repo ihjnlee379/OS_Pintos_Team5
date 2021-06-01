@@ -16,6 +16,7 @@ syscall_init (void)
 
 void check_vaddr (const void *vaddr) {
   if (!is_user_vaddr(vaddr)) {
+    //printf("found\n");
     exit(-1);
   }
 }
@@ -32,7 +33,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       //printf("SYS_EXIT\n");
       check_vaddr(f->esp+4);
       exit(*(uint32_t *)(f->esp+4));
-      printf("exit done\n");
+      //printf("exit done\n");
       break;
     case SYS_EXEC:
       check_vaddr(f->esp+4);
@@ -43,6 +44,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = wait((pid_t)*(uint32_t *)(f->esp+4));
       break;
     case SYS_CREATE:
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      f->eax = create((const char *)*(uint32_t *)(f->esp+4), (unsigned)*(uint32_t *)(f->esp+8));
       break;
     case SYS_REMOVE:
       break;
@@ -51,8 +55,15 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_FILESIZE:
       break;
     case SYS_READ:
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      check_vaddr(f->esp+12);
+      f->eax = read((int)*(uint32_t *)(f->esp + 4), (const void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_WRITE:
+      check_vaddr(f->esp+4);
+      check_vaddr(f->esp+8);
+      check_vaddr(f->esp+12);
       //printf("SYS_WRITE\n");
       f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp+8), (unsigned)*((uint32_t *)(f->esp+12)));
       break;
@@ -61,7 +72,10 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL:
       break;
     case SYS_CLOSE:
-      break; }
+      break; 
+    default:
+      exit(-1);
+  }
     //printf ("system call!\n");
     //thread_exit ();
 }
@@ -73,7 +87,7 @@ void halt (void) {
 void exit (int status) {
   printf("%s: exit(%d)\n", thread_name(), status);
   thread_exit();
-  printf("thread_exit() done\n");
+  //printf("thread_exit() done\n");
 }
 
 pid_t exec (const char *first_word) {
@@ -84,16 +98,23 @@ int wait (pid_t pid) {
    return process_wait(pid);
 }
 
-int read (int fd, void* buffer, unsigned size) {
+int read (int fd, void *buffer, unsigned size) {
   int i;
-  if (fd == 0) {
+  if (fd == 0)
+  {
+    for (i = 0; i != size; i++) {
+      *(uint8_t *)(buffer + i) = input_getc();
+    }
+    return size;
+  } 
+  else {
     for (i = 0; i < size; i++) {
       if (((char *)buffer)[i] == '\0') {
         break;
       }
     }
+    return size;
   }
-  return i;
 }
 
 int write (int fd, const void *buffer, unsigned size) {
@@ -107,3 +128,13 @@ int write (int fd, const void *buffer, unsigned size) {
   }
   return -1;
 }
+
+bool create (const char *file, unsigned size) {
+  //printf("not found\n");
+  if(file == NULL) {
+    exit(-1);
+    return -1;
+  }
+  return filesys_create(file, size);
+}
+

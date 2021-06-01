@@ -164,6 +164,32 @@ start_process (void *file_name_)
   char *first_word;
   //char first_word[256];
   int temp;
+  char *dbl_delete;
+  int is_spce;
+  int temp2;  
+  
+  is_spce = 0;
+  temp2 = 0;
+  dbl_delete = (char *)malloc(sizeof(char) * strlen(file_name) + 1);
+  for(temp = 0; temp < strlen(file_name); temp++) {
+    if(file_name[temp] == '\0') {
+      break;
+    }
+    if(file_name[temp] == ' ') {
+      if(is_spce == 0) {
+        is_spce = 1;
+      }
+      else {
+        continue;
+      }
+    }
+    else {
+      is_spce = 0;
+    }
+    dbl_delete[temp2] = file_name[temp];
+    temp2++;
+  }
+  dbl_delete[temp2] = '\0';
 
   first_word = (char *)malloc(sizeof(char) * 256);
   for(temp = 0; temp < strlen(file_name); temp++) {
@@ -175,7 +201,8 @@ start_process (void *file_name_)
     }
   }
   first_word[temp] = '\0';
-  //printf("\nfirst word = %s\n", first_word);
+  strlcpy(file_name, dbl_delete, strlen(dbl_delete) + 1);
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
