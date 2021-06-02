@@ -4,19 +4,11 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-//#include "userprog/syscall.h"
-#include "filesys/off_t.h"
+#include "userprog/syscall.h"
 
 static void syscall_handler (struct intr_frame *);
 void check_vaddr (const void *vaddr);
 struct lock f_lock;
-
-
-struct file {
-  struct inode *inode;
-  off_t pos;
-  bool deny_write;
-};
 
 void
 syscall_init (void) 
@@ -33,12 +25,8 @@ void check_vaddr (const void *vaddr) {
 }
 
 static void
-syscall_handler (struct intr_frame *f)
+syscall_handler (struct intr_frame *f UNUSED)
 {
-  if(*(uint32_t *)(f->esp) == NULL) {
-    exit(-1);
-  }
-//printf("dfdfdf\n");
  // hex_dump(f->esp, f->esp, 100, 1);
   //printf("syscall num : %d\n", *(uint32_t *)(f->esp));
   switch (*(uint32_t *)(f->esp)) {
@@ -77,7 +65,6 @@ syscall_handler (struct intr_frame *f)
       f->eax = filesize((int)*(uint32_t *)(f->esp+4));
       break;
     case SYS_READ:
-      //exit(-1);
       check_vaddr(f->esp+4);
       check_vaddr(f->esp+8);
       check_vaddr(f->esp+12);
@@ -109,11 +96,9 @@ syscall_handler (struct intr_frame *f)
 }
     //printf ("system call!\n");
     //thread_exit ();
-
 void halt (void) {
   shutdown_power_off();
 }
-
 
 void exit (int status) {
   printf("%s: exit(%d)\n", thread_name(), status);
@@ -121,107 +106,62 @@ void exit (int status) {
   //printf("thread_exit() done\n");
 }
 
-
 pid_t exec (const char *first_word) {
-  int result;
-  if (first_word) {
-    return -1;
-  }
-  lock_acquire(&f_lock); 
-  result = process_execute(first_word);
-  lock_release(&f_lock);
-  return result;
+  return process_execute(first_word);
 }
 
- 
 int filesize(int fd) {
-   //printf("filesize fd = %d\n", fd);
-   if (thread_current()->fd_table[fd] == NULL) {
-     //printf("fd = null\n");
+   if (thread_current()->fd_table[fd] == NULL)
      exit (-1);
-   }
-   //printf("file not null\n");
    return file_length(thread_current()->fd_table[fd]);
 }
-
 
 int wait (pid_t pid) {
    return process_wait(pid);
 }
 
-
 int read (int fd, void *buffer, unsigned size) {
   int i;
   struct file *f;
-  
-  //exit(-1);
-
+ 
+  printf("fd == %d\n"); 
   check_vaddr(buffer);
-  lock_acquire(&f_lock); 
-  
-  if (fd == 0) { 
+  lock_acquire(&f_lock);
+ 
+  if (fd == 0) {
+    //printf("fd == 0\n");
     for (i = 0; i != size; i++) {
+      //*(uint8_t *)(buffer + i) = input_getc();
       if (((char *)buffer)[i] == '\0')
         break;
-    } 
+    }
     lock_release(&f_lock);
     return i;
   }
-  else { 
-   
-    if(!(f = thread_current()->fd_table[fd])) {
-      lock_release(&f_lock);
-      exit(-1);
-    }
+  else {
+    if (fd <= 1 || thread_current()->next_fd <= fd)
+      return -1;
+    //printf("fd > 2\n");
+    f = thread_current()->fd_table[fd];
 
     if (size = file_read(f, buffer, size)) {
       lock_release(&f_lock);
       return size;
     }
-
-    lock_release(&f_lock);
-    return 0;
   }
-  
 }
-
 
 int write (int fd, const void *buffer, unsigned size) {
   struct file *f;
   struct thread *t = thread_current();
-
-  lock_acquire(&f_lock);
   //printf("fd == %d\n", fd);
-
   if (fd == 1) {
     putbuf(buffer, size);
     //printf("buffer : %s\n", buffer);
-    lock_release(&f_lock);
     return size;
   }
-
-  else if (fd > 2) {
-    struct file *t_file = t->fd_table[fd];
-  
-    if (t_file == NULL) {
-      lock_release(&f_lock);
-      exit(-1);
-    }
-
-  // t_file->deny_write;
-
-    if (t_file->deny_write) {
-      file_deny_write(t_file);
-    }
-    lock_release(&f_lock);
-    return file_write(t_file, buffer, size);
-  }
-
-  lock_release(&f_lock);
   return -1;
-} 
-
-
+}
 
 bool create (const char *file, unsigned size) {
   //printf("not found\n");
@@ -232,12 +172,11 @@ bool create (const char *file, unsigned size) {
   return filesys_create(file, size);
 }
 
-
 int open (const char *file) {
-  
-  if (file == NULL) {
+  int i=3;
+ 
+  if (file == NULL)
     exit(-1);
-  }
 
   lock_acquire(&f_lock);
   struct file *f = filesys_open(file);
@@ -246,28 +185,19 @@ int open (const char *file) {
     lock_release(&f_lock);
     return -1;
   }
-  
-  int i = 3;
 
-  while(i < 128) {
-    struct file *t_file = thread_current()->fd_table[i];
-   
-    if (t_file == NULL) {
-      if (strcmp(thread_name(), file) == 0) {
-        file_deny_write(f);
-      }
-      //t_file = f;
-      thread_current()->fd_table[i] = f;
-
+  while (i < 128) {
+    struct thread *t;
+    if ((t->fd_table[i] == NULL) && (strcmp(thread_name(), file)==0)) {
+      file_deny_write(f);
+     }
+    if (t->fd_table[i] == NULL) {
+      t->fd_table[i] = f;
       lock_release(&f_lock);
       return i;
     }
     i++;
   }
-  
-  lock_release(&f_lock);
-  return -1;
-  
 }
 
 
@@ -275,10 +205,9 @@ void close(int fd) {
   struct file *f = thread_current()->fd_table[fd];
   if (f == NULL)
     exit(-1);
+  f == NULL;
   file_close(f);
-  thread_current()->fd_table[fd] = NULL;
 }
-
 
 void seek(int fd, unsigned offset) {
   if (thread_current()->fd_table[fd] == NULL)
@@ -286,13 +215,11 @@ void seek(int fd, unsigned offset) {
   file_seek(thread_current()->fd_table[fd], offset);
 }
 
-
 unsigned tell(int fd) {
   if (thread_current()->fd_table[fd] == NULL)
     exit(-1);
   return file_tell(thread_current()->fd_table[fd]);
 }
-
 
 bool remove(const char *f) {
   if (f == NULL)

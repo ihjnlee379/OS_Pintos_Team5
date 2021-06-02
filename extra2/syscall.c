@@ -4,7 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-//#include "userprog/syscall.h"
+#include "userprog/syscall.h"
 #include "filesys/off_t.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -33,12 +33,8 @@ void check_vaddr (const void *vaddr) {
 }
 
 static void
-syscall_handler (struct intr_frame *f)
+syscall_handler (struct intr_frame *f UNUSED)
 {
-  if(*(uint32_t *)(f->esp) == NULL) {
-    exit(-1);
-  }
-//printf("dfdfdf\n");
  // hex_dump(f->esp, f->esp, 100, 1);
   //printf("syscall num : %d\n", *(uint32_t *)(f->esp));
   switch (*(uint32_t *)(f->esp)) {
@@ -77,7 +73,6 @@ syscall_handler (struct intr_frame *f)
       f->eax = filesize((int)*(uint32_t *)(f->esp+4));
       break;
     case SYS_READ:
-      //exit(-1);
       check_vaddr(f->esp+4);
       check_vaddr(f->esp+8);
       check_vaddr(f->esp+12);
@@ -127,13 +122,13 @@ pid_t exec (const char *first_word) {
   if (first_word) {
     return -1;
   }
-  lock_acquire(&f_lock); 
+  lock_acquire(&f_lock);
   result = process_execute(first_word);
   lock_release(&f_lock);
   return result;
 }
 
- 
+
 int filesize(int fd) {
    //printf("filesize fd = %d\n", fd);
    if (thread_current()->fd_table[fd] == NULL) {
@@ -153,21 +148,21 @@ int wait (pid_t pid) {
 int read (int fd, void *buffer, unsigned size) {
   int i;
   struct file *f;
-  
-  //exit(-1);
-
+ 
   check_vaddr(buffer);
   lock_acquire(&f_lock); 
-  
-  if (fd == 0) { 
+ 
+  if (fd == 0) {
+    printf("fd == 0\n");
     for (i = 0; i != size; i++) {
+      //*(uint8_t *)(buffer + i) = input_getc();
       if (((char *)buffer)[i] == '\0')
         break;
-    } 
+    }
     lock_release(&f_lock);
     return i;
   }
-  else { 
+  else {
    
     if(!(f = thread_current()->fd_table[fd])) {
       lock_release(&f_lock);
@@ -179,10 +174,8 @@ int read (int fd, void *buffer, unsigned size) {
       return size;
     }
 
-    lock_release(&f_lock);
-    return 0;
+    return -1;
   }
-  
 }
 
 

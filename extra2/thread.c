@@ -13,9 +13,9 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+//#include "threads/fixed_point.c"
 
-#endif 
-#include "threads/fixed_point.c"
+#endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -200,13 +200,11 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   // Initialize fd_table
-  /*
   t->fd_table = palloc_get_multiple(PAL_ZERO,2);
   if (t->fd_table == NULL) {
     palloc_free_page(t);
     return TID_ERROR;
   }
-  */
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -745,7 +743,6 @@ is_thread (struct thread *t)
 static void
 init_thread (struct thread *t, const char *name, int priority)
 {
-  int i;
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
@@ -767,16 +764,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nice = running_thread()->nice;
 
 #ifdef USERPROG
-  t->parent = running_thread();
   sema_init(&(t->sema_child), 0);
   sema_init(&(t->sema_mem), 0);
-  sema_init(&(t->exec_lock), 0);
   list_init(&(t->child));
   list_push_back(&(running_thread()->child), &(t->child_e));
 #endif
-  for (i = 0; i < 128; i++) {                                                         
-      t->fd_table[i] = NULL;                                                                
-  } 
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

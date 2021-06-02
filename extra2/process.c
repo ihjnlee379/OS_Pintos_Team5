@@ -18,7 +18,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/synch.h"
-#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -29,11 +28,6 @@ static void parsing_filename (char *file_name, void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-
-
-
-
-
 tid_t
 process_execute (const char *file_name) 
 {
@@ -42,10 +36,6 @@ process_execute (const char *file_name)
   tid_t tid;
   int temp;
   char *first_word;
-  struct thread* t;
-  struct list_elem* e;
-  
-  
   //printf("testsssssss\n");
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -81,25 +71,9 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   
   tid = thread_create (first_word, PRI_DEFAULT, start_process, fn_copy);
-
-  sema_down(&thread_current()->exec_lock);
-
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  
-  
-  e = list_begin(&(thread_current()->child));
-  while (e != list_end(&(thread_current()->child))) {
-    
-    t = list_entry(e, struct thread, child_e);
-    if (t != NULL && t->exit == -1) {
-      return process_wait(tid);
-    }
-    
-    e = list_next(e);
-  }
 
-  
   //return process_wait(tid);
   return tid;
 }
@@ -252,13 +226,12 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   
-  sema_up(&thread_current()->parent->exec_lock);
 
   //free(first_word);
 
   if (!success) {
     //printf("load failed\n\n");
-    exit (-1);
+    thread_exit ();
   }
 
   /* Start the user process by simulating a return from an
@@ -280,56 +253,22 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-/*
 int
 process_wait (tid_t child_tid) 
 {
   int exit;
-  int cnt = 0;
   struct thread* t = NULL;
   struct list_elem* e = list_begin(&(thread_current()->child));
-  printf("hello\n");
+
   while (e != list_end(&(thread_current()->child))) {
-    
     t = list_entry(e, struct thread, child_e);
     if (child_tid == t->tid) {
-      printf("cnt: %d\n", ++cnt);
-      printf("yes01\n");
-      sema_down(&(t->sema_child));
-      printf("yes02\n");
-      exit = t->exit;
-      printf("yes03\n");
-      list_remove(&(t->child_e));
-      printf("yes04\n");
-      sema_up(&(t->sema_mem));
-      printf("exit!!!!!!!! %d\n", exit);
-      return exit;
-    }
-    
-    e = list_next(e);
-  }
-  return -1;
-}
-*/
-
-int
-process_wait (tid_t child_tid) 
-{
-  int exit = -1;
-  struct thread* t = NULL;
-  struct list_elem* e = list_begin(&(thread_current()->child));
-  while (e != list_end(&(thread_current()->child))) {
-    
-    t = list_entry(e, struct thread, child_e);
-    if (t != NULL && child_tid == t->tid) {
-      
       sema_down(&(t->sema_child));
       exit = t->exit;
       list_remove(&(t->child_e));
       sema_up(&(t->sema_mem));
       return exit;
     }
-    
     e = list_next(e);
   }
   return -1;
@@ -606,8 +545,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
   if (phdr->p_vaddr < PGSIZE) {
-    //printf("\n\nvalidate_segment fail\n\n");
-    exit(-1);
+    printf("\n\nvalidate_segment fail\n\n");
     return false;
   }
 

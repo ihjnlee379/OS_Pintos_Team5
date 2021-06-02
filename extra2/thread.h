@@ -116,15 +116,13 @@ struct thread
     uint32_t *pagedir;
     struct semaphore sema_child;
     struct semaphore sema_mem;
-    struct semaphore exec_lock;
-    struct thread* parent;
     struct list child;
     struct list_elem child_e;
     int exit; // exit(0);
 #endif
 
     int next_fd;
-    struct file* fd_table[128];
+    struct file **fd_table;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -149,8 +147,6 @@ void thread_block (void);
 void thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
-//struct thread * running_thread (void);
-//bool is_thread (struct thread *t);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
