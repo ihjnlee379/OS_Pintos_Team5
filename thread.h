@@ -118,8 +118,11 @@ struct thread
     struct semaphore sema_mem;
     struct list child;
     struct list_elem child_e;
-    int exit;
+    int exit; // exit(0);
 #endif
+
+    int next_fd;
+    struct file **fd_table;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

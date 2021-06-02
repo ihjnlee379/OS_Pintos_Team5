@@ -13,9 +13,9 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+//#include "threads/fixed_point.c"
 
 #endif
-#include "threads/fixed_point.c"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
