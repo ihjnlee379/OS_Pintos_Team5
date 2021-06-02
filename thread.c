@@ -199,6 +199,13 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  // Initialize fd_table
+  t->fd_table = palloc_get_multiple(PAL_ZERO,2);
+  if (t->fd_table == NULL) {
+    palloc_free_page(t);
+    return TID_ERROR;
+  }
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
