@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 #include "filesys/off_t.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -34,7 +35,7 @@ void check_vaddr (const void *vaddr) {
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
- // hex_dump(f->esp, f->esp, 100, 1); 
+ // hex_dump(f->esp, f->esp, 100, 1);
   //printf("syscall num : %d\n", *(uint32_t *)(f->esp));
   switch (*(uint32_t *)(f->esp)) {
     case SYS_HALT:
@@ -118,7 +119,7 @@ void exit (int status) {
 
 pid_t exec (const char *first_word) {
   int result;
-  if(first_word) {
+  if (first_word) {
     return -1;
   }
   lock_acquire(&f_lock);
@@ -129,8 +130,12 @@ pid_t exec (const char *first_word) {
 
 
 int filesize(int fd) {
-   if (thread_current()->fd_table[fd] == NULL)
+   //printf("filesize fd = %d\n", fd);
+   if (thread_current()->fd_table[fd] == NULL) {
+     //printf("fd = null\n");
      exit (-1);
+   }
+   //printf("file not null\n");
    return file_length(thread_current()->fd_table[fd]);
 }
 
@@ -143,12 +148,12 @@ int wait (pid_t pid) {
 int read (int fd, void *buffer, unsigned size) {
   int i;
   struct file *f;
-  
+ 
   check_vaddr(buffer);
-  lock_acquire(&f_lock);
+  lock_acquire(&f_lock); 
  
   if (fd == 0) {
-    //printf("fd == 0\n");
+    printf("fd == 0\n");
     for (i = 0; i != size; i++) {
       //*(uint8_t *)(buffer + i) = input_getc();
       if (((char *)buffer)[i] == '\0')
@@ -158,15 +163,18 @@ int read (int fd, void *buffer, unsigned size) {
     return i;
   }
   else {
-    if (fd <= 1 || thread_current()->next_fd <= fd)
-      return -1;
-    //printf("fd > 2\n");
-    f = thread_current()->fd_table[fd];
+   
+    if(!(f = thread_current()->fd_table[fd])) {
+      lock_release(&f_lock);
+      exit(-1);
+    }
 
     if (size = file_read(f, buffer, size)) {
       lock_release(&f_lock);
       return size;
     }
+
+    return -1;
   }
 }
 
@@ -188,17 +196,16 @@ int write (int fd, const void *buffer, unsigned size) {
   else if (fd > 2) {
     struct file *t_file = t->fd_table[fd];
   
-   if (t_file == NULL) {
+    if (t_file == NULL) {
       lock_release(&f_lock);
       exit(-1);
     }
 
-   t_file->deny_write;
-/*
-   if (t_file->deny_write) {
+  // t_file->deny_write;
+
+    if (t_file->deny_write) {
       file_deny_write(t_file);
-   }
-*/
+    }
     lock_release(&f_lock);
     return file_write(t_file, buffer, size);
   }
@@ -235,7 +242,7 @@ int open (const char *file) {
   
   int i = 3;
 
-  while(i < 131) {
+  while(i < 128) {
     struct file *t_file = thread_current()->fd_table[i];
    
     if (t_file == NULL) {
@@ -244,7 +251,7 @@ int open (const char *file) {
       }
       //t_file = f;
       thread_current()->fd_table[i] = f;
-      
+
       lock_release(&f_lock);
       return i;
     }
@@ -261,8 +268,8 @@ void close(int fd) {
   struct file *f = thread_current()->fd_table[fd];
   if (f == NULL)
     exit(-1);
-  f == NULL;
   file_close(f);
+  thread_current()->fd_table[fd] = NULL;
 }
 
 
