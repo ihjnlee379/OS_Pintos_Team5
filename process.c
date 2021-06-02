@@ -36,7 +36,7 @@ process_execute (const char *file_name)
   tid_t tid;
   int temp;
   char *first_word;
-
+  //printf("testsssssss\n");
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -44,7 +44,11 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
+
+ 
+
   first_word = (char *)malloc(sizeof(char) * 256);
+  
   for(temp = 0; temp < strlen(file_name); temp++) {
     if(file_name[temp] != ' ' && file_name[temp] != '\0') {
       first_word[temp] = file_name[temp];
@@ -54,7 +58,11 @@ process_execute (const char *file_name)
     }
   }
   first_word[temp] = '\0';
+  
   //printf("\nfirst word = %s\n", first_word);
+  //parsing_filename(file_name, first_word);
+
+
  
   if (filesys_open(first_word) == NULL)
     return -1;
@@ -66,7 +74,8 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  return process_wait(tid);
+  //return process_wait(tid);
+  return tid;
 }
 
 void parsing_filename(char *filename, void **esp) {
@@ -86,7 +95,7 @@ void parsing_filename(char *filename, void **esp) {
   argc = 0;
  
   if(strlen(filename) == 0) {
-    printf("no filename: error!!!!!!!!!!!!!!!");
+    //printf("no filename: error!!!!!!!!!!!!!!!");
     return;
   }
   else
@@ -245,7 +254,7 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   int exit;
   struct thread* t = NULL;
